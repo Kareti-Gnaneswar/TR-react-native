@@ -1,12 +1,12 @@
-import React, {useCallback} from 'react';
-
-import { Button, View, Text, StyleSheet, Image,TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Button, View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { NavigationContainer } from '@react-navigation/native';
 import 'react-native-gesture-handler';
 import { createStackNavigator } from '@react-navigation/stack';
 import { openBrowserAsync } from 'expo-web-browser';
-
+import notificationStyles from './notificationstyles';
 //home page screen
 function HomeScreen({ navigation }) {
     return (
@@ -149,56 +149,113 @@ function HRQuestions({ navigation }) {
 }
 // MCQ questions screen this page is in body 
 function McqQuestions({ navigation }) {
+    const [subjects, setSubjects] = useState([]);
+
+    useEffect(() => {
+        fetchSubjects();
+    }, []);
+
+    const fetchSubjects = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/mcq/subjects');
+            setSubjects(response.data);
+        } catch (error) {
+            console.error('Error fetching subjects:', error);
+        }
+    };
+
+    const handleSubjectSelection = async (subject) => {
+        try {
+            const response = await axios.get(`http://localhost:8080/api/mcq/questions/${subject}`);
+            navigation.navigate('SubjectQuestions', { subject, questions: response.data });
+        } catch (error) {
+            console.error('Error fetching questions:', error);
+        }
+    };
+
     return (
-        <View style={styles.mcq}>
-        <View style={styles.header}>
-    
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image style={styles.homei} source={require('./assets/home.png')} />
-            </TouchableOpacity>
-            <Image style={styles.not} source={require('./assets/noti.png')} />
+        <View style={styles.container}>
+            <View style={styles.subjectList}>
+                <Text style={styles.subjectHeader}>Select a Subject</Text>
+                {subjects.map((subject, index) => (
+                    <TouchableOpacity
+                        key={index}
+                        style={styles.subjectButton}
+                        onPress={() => handleSubjectSelection(subject)}
+                    >
+                        <Text style={styles.subjectText}>{subject}</Text>
+                    </TouchableOpacity>
+                ))}
             </View>
-            <View style={styles.cvr}>
-        
-            <View style={styles.cv}>
-            <TouchableOpacity onPress={() => navigation.navigate('C language')}>
-             <Text>c language</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.cv}>
-            <TouchableOpacity onPress={() => navigation.navigate('C++ language')}>
-                <Text>c++</Text>
-                </TouchableOpacity>
-            </View>
-            </View>
-            <View style={styles.cvrm}>
-            <View style={styles.cvm}>
-            <TouchableOpacity onPress={() => navigation.navigate('Python')}>
-                <Text>python</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.cvm}>
-            <TouchableOpacity onPress={() => navigation.navigate('java')}>
-                <Text>java</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.cvm}>
-            <TouchableOpacity onPress={() => navigation.navigate('sql')}>
-                <Text>sql</Text>
-                </TouchableOpacity>
-            </View>
-            </View>
-      
             <View style={styles.footerst}>
-        <Text style={styles.fotextt}>FAQ's</Text>
-        <Text style={styles.fotextt}>Blogs</Text>
-        <Text style={styles.fotextt}>Placements</Text>
-        <Text style={styles.fotextt}>Contact us</Text>
-        <Text style={styles.fotextt}>About Us</Text>
-    </View>
+                <Text style={styles.fotextt}>FAQ's</Text>
+                <Text style={styles.fotextt}>Blogs</Text>
+                <Text style={styles.fotextt}>Placements</Text>
+                <Text style={styles.fotextt}>Contact us</Text>
+                <Text style={styles.fotextt}>About Us</Text>
+            </View>
         </View>
     );
 }
+
+
+function SubjectQuestions({ route }) {
+    const { subject, questions } = route.params;
+    const [selectedOptions, setSelectedOptions] = useState({});
+    const [showAnswer, setShowAnswer] = useState(false);
+
+    const handleSelectOption = (questionId, option) => {
+        setSelectedOptions({ ...selectedOptions, [questionId]: option });
+    };
+
+    const handleShowAnswer = () => {
+        setShowAnswer(true);
+    };
+
+    return (
+        <View style={{ flex: 1, padding: 20 }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10 }}>Subject: {subject}</Text>
+            <ScrollView>
+                {questions.map((question, index) => (
+                    <View key={index} style={{ marginBottom: 20 }}>
+                        <Text style={{ fontSize: 16 }}>{question.question}</Text>
+                        {question.options.map((option, optionIndex) => (
+                            <TouchableOpacity
+                                key={optionIndex}
+                                style={{
+                                    padding: 10,
+                                    backgroundColor: selectedOptions[question.id] === option ? 'lightblue' : 'white',
+                                    borderWidth: 1,
+                                    borderColor: 'blue',
+                                    borderRadius: 5,
+                                    marginTop: 5,
+                                }}
+                                onPress={() => handleSelectOption(question.id, option)}
+                                disabled={showAnswer}
+                            >
+                                <Text>{option}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        {!showAnswer && (
+                            <TouchableOpacity onPress={handleShowAnswer} style={{ marginTop: 10 }}>
+                                <Text style={{ color: 'blue' }}>Show Answer</Text>
+                            </TouchableOpacity>
+                        )}
+                        {showAnswer && (
+                            <View style={{ marginTop: 10 }}>
+                                <Text style={{ fontWeight: 'bold', color: 'green' }}>Correct Answer:</Text>
+                                <Text>{question.answer}</Text>
+                                <Text style={{ fontWeight: 'bold', color: 'blue' }}>Explanation:</Text>
+                                <Text>{question.explanation}</Text>
+                            </View>
+                        )}
+                    </View>
+                ))}
+            </ScrollView>
+        </View>
+    );
+}
+
 // TR questions screen this page is in body 
 function TRQuestions({ navigation }) {
     return (
@@ -284,54 +341,6 @@ function Cq({ navigation }) {
         </View>
     );
 }
-// Python Language  screen this page is in TR Questions  and also MOCk interview pages
-function Pythonq({ navigation }) {
-    return (
-       <View>
-        <View style={styles.header}>
-    
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image style={styles.homei} source={require('./assets/home.png')} />
-            </TouchableOpacity>
-            <Image style={styles.not} source={require('./assets/noti.png')} />
-        </View>
-        <Text style={{textAlign:"center"}}>hi am in python page</Text>
-        <Footer/>
-        </View>
-    );
-}
-// JAVA LAnguage  screen this page is in TR Questions  and also MOCk interview pages
-function Javaq({ navigation }) {
-    return (
-       <View>
-        <View style={styles.header}>
-    
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image style={styles.homei} source={require('./assets/home.png')} />
-            </TouchableOpacity>
-            <Image style={styles.not} source={require('./assets/noti.png')} />
-        </View>
-        <Text style={{textAlign:"center"}}>hi am in java page</Text>
-        <Footer/>
-        </View>
-    );
-}
-// SQL LAnguage  screen this page is in TR Questions  and also MOCk interview pages
-function Sqlq({ navigation }) {
-    return (
-       <View>
-        <View style={styles.header}>
-    
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image style={styles.homei} source={require('./assets/home.png')} />
-            </TouchableOpacity>
-            <Image style={styles.not} source={require('./assets/noti.png')} />
-        </View>
-        <Text style={{textAlign:"center"}}>hi am in sql page</Text>
-        <Footer/>
-        </View>
-    );
-}
 // MOCK INTERVIEWS  screen this page is in body
 function Mockinterviews({ navigation }) {
     return (
@@ -349,16 +358,47 @@ function Mockinterviews({ navigation }) {
 }
 // NOTIFICATION  this page will open when we click the notification icon in body
 function Notificationpage({ navigation }) {
+    const [notifications, setNotifications] = useState([]);
+    const [isNewNotification, setIsNewNotification] = useState(false);
+
+    useEffect(() => {
+        fetchNotifications(); // Fetch notifications when component mounts
+    }, []);
+
+    useEffect(() => {
+        // Check if there are new notifications
+        if (notifications.length > 0) {
+            setIsNewNotification(true);
+        }
+    }, [notifications]);
+
+    const fetchNotifications = async () => {
+        try {
+            const response = await axios.get("http://192.168.0.123:8080/api/notifications/getNotifications");
+            setNotifications(response.data);
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+            // Handle error fetching notifications
+        }
+    };
+
     return (
-       <View>
-        <View style={styles.header}>
-    
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Image style={styles.homei} source={require('./assets/home.png')} />
-            </TouchableOpacity>
-            
-        </View>
-        <Footer/>
+        <View style={notificationStyles.container}>
+            <View style={notificationStyles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Image style={[notificationStyles.homeIcon, isNewNotification && notificationStyles.newNotificationIcon]} source={require('./assets/home.png')} />
+                </TouchableOpacity>
+            </View>
+            <View style={notificationStyles.notificationContainer}>
+                {/* Render notifications */}
+                {notifications.map((notification, index) => (
+                    <View key={index} style={notificationStyles.notification}>
+                        <Text style={notificationStyles.title}>Title: {notification.title}</Text>
+                        <Text style={notificationStyles.content}>Content: {notification.content}</Text>
+                    </View>
+                ))}
+            </View>
+            <Footer />
         </View>
     );
 }
@@ -537,11 +577,6 @@ const Stack = createStackNavigator();
       <Stack.Screen name ="Contact Us" component={ContactUS}/>
       <Stack.Screen name ="About Us" component={Aboutus}/>
       <Stack.Screen name ="entoring" component={Footer}/>
-      <Stack.Screen name ="C language" component={Cmock}/>
-      <Stack.Screen name ="C++ language" component={Cq}/>
-      <Stack.Screen name ="Python" component={Pythonq}/>
-      <Stack.Screen name ="java" component={Javaq}/>
-      <Stack.Screen name ="sql" component={Sqlq}/>
       <Stack.Screen name ="notification" component={Notificationpage}/>
       <Stack.Screen name ="Poll division" component={Poll}/>
       <Stack.Screen name ="coding" component={Coding}/>
